@@ -28,7 +28,7 @@
 
 1. Install [Fabric Loader](https://fabricmc.net/use/) for 1.21.11 and [Fabric API](https://modrinth.com/mod/fabric-api).
 2. (Optional but recommended) grab [ModMenu](https://modrinth.com/mod/modmenu) so you get a settings button in the mods list.
-3. Drop `eventwatcher-1.0.0.jar` into your `mods` folder.
+3. Download `eventwatcher-1.0.0.jar` from the [latest release](https://github.com/Slimeerr/eventwatcher/releases/latest) and drop it into your `mods` folder.
 4. Launch the game.
 
 ## Setup
