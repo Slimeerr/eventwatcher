@@ -1,7 +1,8 @@
-<img width="160" height="160" alt="image" src="https://github.com/user-attachments/assets/681b26c5-03e4-4ddb-a3ae-ebf4c31148da" />
-
 
 # EventWatcher
+
+<img width="360" height="360" alt="image" src="https://github.com/user-attachments/assets/bc3d3eb4-2067-4ece-8d9f-cc722c089109" />
+
 
 <p align="center">
   <h3 align="center">Watch Discord. Join faster.</h3>
