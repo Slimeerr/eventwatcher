@@ -2,7 +2,7 @@
 Using the "selfbot" option goes against Discord TOS, but usually doesn't flag anything. It's recommended to a alt or a throwaway account for ts. 
 This mod uses AI work and is vibecoded, if you don't want to support AI work then don't download this.
 
-
+**Disclaimer: Use this mod at your own risk. I am not responsible for any account bans, restrictions, or other consequences resulting from the use of this mod.**
 
 
 # EventWatcher
@@ -35,3 +35,4 @@ The built jar lands in `build/libs/`.
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
