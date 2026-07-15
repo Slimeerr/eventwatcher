@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "eventwatcher",
+  "version": "${version}",
+  "name": "EventWatcher",
+  "description": "Watches a Discord channel for keywords and instantly connects you (or notifies you to connect) to an event server — works straight from the Title Screen.",
+  "authors": [
+    "EventWatcher"
+  ],
+  "contact": {
+    "homepage": "https://github.com/your-name/eventwatcher",
+    "sources": "https://github.com/your-name/eventwatcher"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "net.eventwatcher.EventWatcherClient"
+    ],
+    "modmenu": [
+      "net.eventwatcher.EventWatcherModMenu"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "eventwatcher.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}
