@@ -24,8 +24,12 @@
 > [!NOTE]
 > EventWatcher works from both the Minecraft title screen and in-game.
 
+> [!WARNING]
+> AI code and vibecoding were used in this project.
+
 > [!CAUTION]
 > User tokens (selfbots) violate Discord's Terms of Service. If you choose to use one, use an alternate account and understand the risks.
+
 
 ## Features
 
