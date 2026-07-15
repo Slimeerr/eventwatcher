@@ -8,10 +8,11 @@
     "EventWatcher"
   ],
   "contact": {
-    "homepage": "https://github.com/your-name/eventwatcher",
-    "sources": "https://github.com/your-name/eventwatcher"
+    "homepage": "https://github.com/Slimeerr/eventwatcher",
+    "sources": "https://github.com/Slimeerr/eventwatcher"
   },
   "license": "MIT",
+  "icon": "assets/eventwatcher/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
