@@ -16,7 +16,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import net.eventwatcher.EventWatcherClient;
-import net.eventwatcher.config.EventWatcherConfig;
+import net.eventwatcher.config.WatchConfig;
 import org.jetbrains.annotations.Nullable;
 
 public class DiscordUserPoller implements DiscordSource {
@@ -24,7 +24,7 @@ public class DiscordUserPoller implements DiscordSource {
    private static final long POLL_INTERVAL_MS = 3000L;
    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
    private final String token;
-   private final EventWatcherConfig config;
+   private final WatchConfig watch;
    private final DiscordSource.MatchListener listener;
    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10L)).build();
    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -41,9 +41,9 @@ public class DiscordUserPoller implements DiscordSource {
    @Nullable
    private volatile ScheduledFuture<?> task;
 
-   public DiscordUserPoller(EventWatcherConfig config, DiscordSource.MatchListener listener) {
-      this.config = config;
-      this.token = config.discordToken;
+   public DiscordUserPoller(WatchConfig watch, DiscordSource.MatchListener listener) {
+      this.watch = watch;
+      this.token = watch.discordToken;
       this.listener = listener;
    }
 
@@ -52,7 +52,10 @@ public class DiscordUserPoller implements DiscordSource {
       if (!this.running) {
          this.running = true;
          EventWatcherClient.LOGGER
-            .warn("Starting Discord USER-TOKEN poller (selfbot mode). This violates Discord's ToS — use a throwaway/alt account, not your main.");
+            .warn(
+               "Starting Discord USER-TOKEN poller for '{}' (selfbot mode). This violates Discord's ToS — use a throwaway/alt account, not your main.",
+               this.watch.describe()
+            );
          this.task = this.scheduler.scheduleWithFixedDelay(this::pollSafely, 0L, 3000L, TimeUnit.MILLISECONDS);
       }
    }
@@ -98,7 +101,7 @@ public class DiscordUserPoller implements DiscordSource {
 
    private void poll() throws Exception {
       if (this.running && System.currentTimeMillis() >= this.pausedUntil) {
-         String channelId = this.config.channelId == null ? "" : this.config.channelId.trim();
+         String channelId = this.watch.channelId == null ? "" : this.watch.channelId.trim();
          if (!channelId.isEmpty()) {
             if (!channelId.chars().allMatch(Character::isDigit)) {
                this.halt("Channel ID '" + channelId + "' is not a numeric Discord channel ID.");
@@ -179,12 +182,12 @@ public class DiscordUserPoller implements DiscordSource {
 
    private void scan(JsonObject msg) {
       String text = MessageScanner.extractText(msg);
-      String matched = MessageScanner.matchKeyword(text, this.config.keywords);
+      String matched = MessageScanner.matchKeyword(text, this.watch.keywords);
       if (matched != null) {
-         EventWatcherClient.LOGGER.info("Keyword '{}' detected in monitored channel.", matched);
+         EventWatcherClient.LOGGER.info("Keyword '{}' detected in monitored channel ({}).", matched, this.watch.describe());
 
          try {
-            this.listener.onMatch(text, matched);
+            this.listener.onMatch(this.watch, text, matched);
          } catch (Exception var5) {
             EventWatcherClient.LOGGER.error("Keyword listener threw", var5);
          }

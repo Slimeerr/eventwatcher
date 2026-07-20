@@ -2,6 +2,7 @@ package net.eventwatcher.connect;
 
 import net.eventwatcher.EventWatcherClient;
 import net.eventwatcher.config.EventWatcherConfig;
+import net.eventwatcher.config.WatchConfig;
 import net.eventwatcher.notify.EventNotifications;
 import net.eventwatcher.sound.NotificationSound;
 import net.eventwatcher.util.GradientText;
@@ -28,11 +29,12 @@ public final class ServerConnector {
    private ServerConnector() {
    }
 
-   public static void handleDetection(String messageContent, String keyword) {
+   public static void handleDetection(WatchConfig watch, String messageContent, String keyword) {
       MinecraftClient client = MinecraftClient.getInstance();
       EventWatcherConfig config = EventWatcherClient.getConfig();
-      String server = config.targetServer;
-      Text chatLine = buildChatMessage(messageContent, keyword);
+      String server = watch.targetServer;
+      String label = watch.label == null ? "" : watch.label.trim();
+      Text chatLine = buildChatMessage(label, messageContent, keyword);
       client.execute(
          () -> {
             pendingChat = null;
@@ -49,18 +51,18 @@ public final class ServerConnector {
                   pendingChat = chatLine;
                   connectNow(server);
                } else {
-                  String message = "Event detected! Click to join " + server;
+                  String message = (label.isEmpty() ? "" : "[" + label + "] ") + "Event detected! Join " + server;
                   EventNotifications.set(message, server);
                   SystemToast.show(
                      client.getToastManager(),
                      Type.PERIODIC_NOTIFICATION,
-                     Text.literal("EventWatcher"),
+                     Text.literal(label.isEmpty() ? "EventWatcher" : "EventWatcher — " + label),
                      Text.literal("Event '" + keyword + "' detected — join " + server)
                   );
                   if (client.world != null && client.player != null) {
                      client.player.sendMessage(chatLine, false);
                      Text link = Text.literal("[Click to join " + server + "]")
-                        .styled(s -> s.withClickEvent(new RunCommand("/ewjoin")).withColor(Formatting.GREEN));
+                        .styled(s -> s.withClickEvent(new RunCommand("/ewjoin " + server)).withColor(Formatting.GREEN));
                      client.player.sendMessage(Text.literal("[EventWatcher] ").formatted(Formatting.GRAY).append(link), false);
                   } else if (client.currentScreen instanceof TitleScreen) {
                      pendingChat = chatLine;
@@ -72,13 +74,14 @@ public final class ServerConnector {
       );
    }
 
-   private static Text buildChatMessage(String content, String keyword) {
+   private static Text buildChatMessage(String label, String content, String keyword) {
       String body = content != null && !content.isBlank() ? content.strip() : "(matched keyword: " + keyword + ")";
       if (body.length() > 256) {
          body = body.substring(0, 256) + "...";
       }
 
-      MutableText prefix = Text.literal("[EventWatcher] ").formatted(Formatting.GRAY);
+      String prefixText = label.isEmpty() ? "[EventWatcher] " : "[EventWatcher/" + label + "] ";
+      MutableText prefix = Text.literal(prefixText).formatted(Formatting.GRAY);
       return prefix.append(GradientText.of(body));
    }
 

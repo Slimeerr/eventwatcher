@@ -31,7 +31,7 @@ public class TitleScreenMixin {
       EventNotifications.PendingEvent pending = EventNotifications.get();
       if (pending != null) {
          int joinW = Math.min(300, w - 12);
-         ButtonWidget join = ButtonWidget.builder(Text.literal("Event detected! Join " + pending.server()), b -> {
+         ButtonWidget join = ButtonWidget.builder(Text.literal(pending.message()), b -> {
             String server = pending.server();
             EventNotifications.clear();
             ServerConnector.connectNow(server);

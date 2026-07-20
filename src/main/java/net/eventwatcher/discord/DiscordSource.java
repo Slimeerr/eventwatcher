@@ -1,5 +1,7 @@
 package net.eventwatcher.discord;
 
+import net.eventwatcher.config.WatchConfig;
+
 public interface DiscordSource {
    void start();
 
@@ -9,6 +11,6 @@ public interface DiscordSource {
 
    @FunctionalInterface
    public interface MatchListener {
-      void onMatch(String var1, String var2);
+      void onMatch(WatchConfig watch, String message, String keyword);
    }
 }

@@ -14,7 +14,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import net.eventwatcher.EventWatcherClient;
-import net.eventwatcher.config.EventWatcherConfig;
+import net.eventwatcher.config.WatchConfig;
 import org.jetbrains.annotations.Nullable;
 
 public class DiscordGatewayClient implements DiscordSource {
@@ -31,7 +31,7 @@ public class DiscordGatewayClient implements DiscordSource {
    private static final long RECONNECT_DELAY_MS = 5000L;
    private static final long RATE_LIMIT_RECONNECT_DELAY_MS = 15000L;
    private final String token;
-   private final EventWatcherConfig config;
+   private final WatchConfig watch;
    private final DiscordSource.MatchListener listener;
    private final HttpClient http = HttpClient.newHttpClient();
    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -57,9 +57,9 @@ public class DiscordGatewayClient implements DiscordSource {
    @Nullable
    private volatile ScheduledFuture<?> heartbeatTask;
 
-   public DiscordGatewayClient(EventWatcherConfig config, DiscordSource.MatchListener listener) {
-      this.config = config;
-      this.token = config.discordToken;
+   public DiscordGatewayClient(WatchConfig watch, DiscordSource.MatchListener listener) {
+      this.watch = watch;
+      this.token = watch.discordToken;
       this.listener = listener;
    }
 
@@ -68,7 +68,7 @@ public class DiscordGatewayClient implements DiscordSource {
       if (!this.running) {
          this.running = true;
          this.shouldResume = false;
-         EventWatcherClient.LOGGER.info("Starting Discord gateway client...");
+         EventWatcherClient.LOGGER.info("Starting Discord gateway client for '{}'...", this.watch.describe());
          this.openSocket();
       }
    }
@@ -322,15 +322,15 @@ public class DiscordGatewayClient implements DiscordSource {
 
    private void handleMessage(JsonObject d) {
       String channelId = d.has("channel_id") ? d.get("channel_id").getAsString() : "";
-      String target = this.config.channelId == null ? "" : this.config.channelId.trim();
+      String target = this.watch.channelId == null ? "" : this.watch.channelId.trim();
       if (!target.isEmpty() && target.equals(channelId)) {
          String text = MessageScanner.extractText(d);
-         String matched = MessageScanner.matchKeyword(text, this.config.keywords);
+         String matched = MessageScanner.matchKeyword(text, this.watch.keywords);
          if (matched != null) {
-            EventWatcherClient.LOGGER.info("Keyword '{}' detected in monitored channel.", matched);
+            EventWatcherClient.LOGGER.info("Keyword '{}' detected in monitored channel ({}).", matched, this.watch.describe());
 
             try {
-               this.listener.onMatch(text, matched);
+               this.listener.onMatch(this.watch, text, matched);
             } catch (Exception var7) {
                EventWatcherClient.LOGGER.error("Keyword listener threw", var7);
             }
