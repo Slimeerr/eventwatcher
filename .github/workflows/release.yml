@@ -32,7 +32,15 @@ jobs:
           java-version: "21"
 
       - name: Build
-        run: ./gradlew build --no-daemon
+        run: |
+          for attempt in 1 2 3; do
+            if ./gradlew build --no-daemon; then
+              exit 0
+            fi
+            echo "Build attempt $attempt failed; retrying in 20s..."
+            sleep 20
+          done
+          exit 1
 
       - name: Locate jar
         id: jar
