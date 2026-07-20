@@ -58,6 +58,9 @@ public final class NotificationSound {
 
    private static void playWav(String path) {
       Thread t = new Thread(() -> {
+         AudioInputStream stream = null;
+         Clip clip = null;
+
          try {
             File file = new File(path);
             if (!file.isFile()) {
@@ -65,22 +68,37 @@ public final class NotificationSound {
                return;
             }
 
-            AudioInputStream stream = AudioSystem.getAudioInputStream(file);
-            Clip clip = AudioSystem.getClip();
+            stream = AudioSystem.getAudioInputStream(file);
+            clip = AudioSystem.getClip();
             clip.open(stream);
+            AudioInputStream openedStream = stream;
+            Clip openedClip = clip;
             clip.addLineListener(ev -> {
                if (ev.getType() == Type.STOP) {
-                  clip.close();
+                  openedClip.close();
 
                   try {
-                     stream.close();
+                     openedStream.close();
                   } catch (Exception var4x) {
                   }
                }
             });
             clip.start();
-         } catch (Exception var4) {
-            EventWatcherClient.LOGGER.warn("Failed to play .wav '{}': {} — must be a standard PCM .wav file.", path, var4.toString());
+         } catch (Exception var6) {
+            EventWatcherClient.LOGGER.warn("Failed to play .wav '{}': {} — must be a standard PCM .wav file.", path, var6.toString());
+            if (clip != null) {
+               try {
+                  clip.close();
+               } catch (Exception var5) {
+               }
+            }
+
+            if (stream != null) {
+               try {
+                  stream.close();
+               } catch (Exception var4) {
+               }
+            }
          }
       }, "EventWatcher-Sound");
       t.setDaemon(true);

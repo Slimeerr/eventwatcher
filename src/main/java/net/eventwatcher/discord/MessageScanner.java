@@ -23,6 +23,23 @@ public final class MessageScanner {
                JsonObject embed = el.getAsJsonObject();
                appendIfPresent(sb, embed, "title");
                appendIfPresent(sb, embed, "description");
+               if (embed.has("author") && embed.get("author").isJsonObject()) {
+                  appendIfPresent(sb, embed.getAsJsonObject("author"), "name");
+               }
+
+               if (embed.has("footer") && embed.get("footer").isJsonObject()) {
+                  appendIfPresent(sb, embed.getAsJsonObject("footer"), "text");
+               }
+
+               if (embed.has("fields") && embed.get("fields").isJsonArray()) {
+                  for (JsonElement fieldEl : embed.getAsJsonArray("fields")) {
+                     if (fieldEl.isJsonObject()) {
+                        JsonObject field = fieldEl.getAsJsonObject();
+                        appendIfPresent(sb, field, "name");
+                        appendIfPresent(sb, field, "value");
+                     }
+                  }
+               }
             }
          }
       }

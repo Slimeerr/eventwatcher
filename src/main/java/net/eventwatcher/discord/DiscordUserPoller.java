@@ -16,7 +16,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import net.eventwatcher.EventWatcherClient;
-import net.eventwatcher.config.EventWatcherConfig;
+import net.eventwatcher.config.WatchConfig;
 import org.jetbrains.annotations.Nullable;
 
 public class DiscordUserPoller implements DiscordSource {
@@ -24,7 +24,7 @@ public class DiscordUserPoller implements DiscordSource {
    private static final long POLL_INTERVAL_MS = 3000L;
    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
    private final String token;
-   private final EventWatcherConfig config;
+   private final WatchConfig watch;
    private final DiscordSource.MatchListener listener;
    private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10L)).build();
    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -34,14 +34,16 @@ public class DiscordUserPoller implements DiscordSource {
    });
    private volatile boolean running;
    private volatile boolean connected;
+   private volatile boolean primed;
+   private volatile long pausedUntil;
    @Nullable
    private volatile String lastMessageId;
    @Nullable
    private volatile ScheduledFuture<?> task;
 
-   public DiscordUserPoller(EventWatcherConfig config, DiscordSource.MatchListener listener) {
-      this.config = config;
-      this.token = config.discordToken;
+   public DiscordUserPoller(WatchConfig watch, DiscordSource.MatchListener listener) {
+      this.watch = watch;
+      this.token = watch.discordToken;
       this.listener = listener;
    }
 
@@ -50,7 +52,10 @@ public class DiscordUserPoller implements DiscordSource {
       if (!this.running) {
          this.running = true;
          EventWatcherClient.LOGGER
-            .warn("Starting Discord USER-TOKEN poller (selfbot mode). This violates Discord's ToS — use a throwaway/alt account, not your main.");
+            .warn(
+               "Starting Discord USER-TOKEN poller for '{}' (selfbot mode). This violates Discord's ToS — use a throwaway/alt account, not your main.",
+               this.watch.describe()
+            );
          this.task = this.scheduler.scheduleWithFixedDelay(this::pollSafely, 0L, 3000L, TimeUnit.MILLISECONDS);
       }
    }
@@ -95,11 +100,17 @@ public class DiscordUserPoller implements DiscordSource {
    }
 
    private void poll() throws Exception {
-      if (this.running) {
-         String channelId = this.config.channelId == null ? "" : this.config.channelId.trim();
+      if (this.running && System.currentTimeMillis() >= this.pausedUntil) {
+         String channelId = this.watch.channelId == null ? "" : this.watch.channelId.trim();
          if (!channelId.isEmpty()) {
-            boolean firstRun = this.lastMessageId == null;
-            String query = firstRun ? "?limit=1" : "?limit=50&after=" + this.lastMessageId;
+            if (!channelId.chars().allMatch(Character::isDigit)) {
+               this.halt("Channel ID '" + channelId + "' is not a numeric Discord channel ID.");
+               return;
+            }
+
+            boolean baseline = !this.primed;
+            String anchor = this.lastMessageId;
+            String query = anchor != null ? "?limit=50&after=" + anchor : (baseline ? "?limit=1" : "?limit=50");
             HttpRequest req = HttpRequest.newBuilder()
                .uri(URI.create("https://discord.com/api/v10/channels/" + channelId + "/messages" + query))
                .timeout(Duration.ofSeconds(10L))
@@ -113,7 +124,11 @@ public class DiscordUserPoller implements DiscordSource {
             switch (sc) {
                case 200:
                   this.connected = true;
-                  this.handleMessages(resp.body(), firstRun);
+                  this.handleMessages(resp.body(), baseline);
+                  if (baseline) {
+                     this.primed = true;
+                     EventWatcherClient.LOGGER.info("Discord user poller connected; watching channel for new messages.");
+                  }
                   break;
                case 401:
                   this.halt("Discord rejected the USER token (401 Unauthorized) — wrong/expired token.");
@@ -127,7 +142,8 @@ public class DiscordUserPoller implements DiscordSource {
                case 429:
                   this.connected = true;
                   long retryMs = retryAfterMs(resp);
-                  EventWatcherClient.LOGGER.warn("Discord rate-limited the poller (429); skipping this cycle (retry-after ~{} ms).", retryMs);
+                  this.pausedUntil = System.currentTimeMillis() + retryMs;
+                  EventWatcherClient.LOGGER.warn("Discord rate-limited the poller (429); pausing polls for ~{} ms.", retryMs);
                   break;
                default:
                   EventWatcherClient.LOGGER.warn("Discord poll returned HTTP {} — will retry.", sc);
@@ -136,7 +152,7 @@ public class DiscordUserPoller implements DiscordSource {
       }
    }
 
-   private void handleMessages(String body, boolean firstRun) {
+   private void handleMessages(String body, boolean baseline) {
       JsonElement parsed = JsonParser.parseString(body);
       if (parsed.isJsonArray()) {
          JsonArray arr = parsed.getAsJsonArray();
@@ -151,7 +167,7 @@ public class DiscordUserPoller implements DiscordSource {
                      newest = id;
                   }
 
-                  if (!firstRun) {
+                  if (!baseline) {
                      this.scan(msg);
                   }
                }
@@ -160,22 +176,18 @@ public class DiscordUserPoller implements DiscordSource {
             if (newest != null) {
                this.lastMessageId = newest;
             }
-
-            if (firstRun) {
-               EventWatcherClient.LOGGER.info("Discord user poller connected; watching channel for new messages.");
-            }
          }
       }
    }
 
    private void scan(JsonObject msg) {
       String text = MessageScanner.extractText(msg);
-      String matched = MessageScanner.matchKeyword(text, this.config.keywords);
+      String matched = MessageScanner.matchKeyword(text, this.watch.keywords);
       if (matched != null) {
-         EventWatcherClient.LOGGER.info("Keyword '{}' detected in monitored channel.", matched);
+         EventWatcherClient.LOGGER.info("Keyword '{}' detected in monitored channel ({}).", matched, this.watch.describe());
 
          try {
-            this.listener.onMatch(text, matched);
+            this.listener.onMatch(this.watch, text, matched);
          } catch (Exception var5) {
             EventWatcherClient.LOGGER.error("Keyword listener threw", var5);
          }

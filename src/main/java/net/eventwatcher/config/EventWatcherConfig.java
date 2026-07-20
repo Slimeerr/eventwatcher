@@ -10,22 +10,30 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import net.eventwatcher.EventWatcherClient;
 import net.fabricmc.loader.api.FabricLoader;
+import org.jetbrains.annotations.Nullable;
 
 public class EventWatcherConfig {
    public static final List<String> DEFAULT_KEYWORDS = Arrays.asList("event", "parrot", "spoke", "flame", "wemmbu", "horace");
    public static final String DEFAULT_TARGET = "unstableevents.net";
-   public String discordToken = "";
-   public String channelId = "";
-   public boolean useUserToken = false;
-   public List<String> keywords = new ArrayList<>(DEFAULT_KEYWORDS);
+   public List<WatchConfig> watches = new ArrayList<>();
    public boolean autoConnect = false;
-   public String targetServer = "unstableevents.net";
    public boolean soundEnabled = true;
    public String soundType = "minecraft";
    public String minecraftSound = "block.note_block.pling";
    public String soundFilePath = "";
+   @Nullable
+   private String discordToken;
+   @Nullable
+   private String channelId;
+   @Nullable
+   private Boolean useUserToken;
+   @Nullable
+   private List<String> keywords;
+   @Nullable
+   private String targetServer;
    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
    private static Path configPath() {
@@ -36,7 +44,7 @@ public class EventWatcherConfig {
       Path path = configPath();
       if (Files.exists(path)) {
          try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
-            EventWatcherConfig loaded = (EventWatcherConfig)GSON.fromJson(reader, EventWatcherConfig.class);
+            EventWatcherConfig loaded = GSON.fromJson(reader, EventWatcherConfig.class);
             if (loaded != null) {
                loaded.sanitize();
                return loaded;
@@ -47,6 +55,7 @@ public class EventWatcherConfig {
       }
 
       EventWatcherConfig fresh = new EventWatcherConfig();
+      fresh.sanitize();
       fresh.save();
       return fresh;
    }
@@ -68,20 +77,18 @@ public class EventWatcherConfig {
    }
 
    public void sanitize() {
-      if (this.discordToken == null) {
-         this.discordToken = "";
+      if (this.watches == null) {
+         this.watches = new ArrayList<>();
       }
 
-      if (this.channelId == null) {
-         this.channelId = "";
+      this.watches.removeIf(Objects::isNull);
+      this.migrateLegacyFields();
+      if (this.watches.isEmpty()) {
+         this.watches.add(new WatchConfig());
       }
 
-      if (this.keywords == null) {
-         this.keywords = new ArrayList<>(DEFAULT_KEYWORDS);
-      }
-
-      if (this.targetServer == null || this.targetServer.isBlank()) {
-         this.targetServer = "unstableevents.net";
+      for (WatchConfig watch : this.watches) {
+         watch.sanitize();
       }
 
       if (this.soundType == null || this.soundType.isBlank()) {
@@ -97,14 +104,39 @@ public class EventWatcherConfig {
       }
    }
 
+   private void migrateLegacyFields() {
+      if (this.discordToken != null || this.channelId != null || this.useUserToken != null || this.keywords != null || this.targetServer != null) {
+         WatchConfig migrated = new WatchConfig();
+         migrated.discordToken = this.discordToken == null ? "" : this.discordToken;
+         migrated.channelId = this.channelId == null ? "" : this.channelId;
+         migrated.useUserToken = this.useUserToken != null && this.useUserToken;
+         if (this.keywords != null) {
+            migrated.keywords = new ArrayList<>(this.keywords);
+         }
+
+         if (this.targetServer != null) {
+            migrated.targetServer = this.targetServer;
+         }
+
+         this.watches.add(migrated);
+         this.discordToken = null;
+         this.channelId = null;
+         this.useUserToken = null;
+         this.keywords = null;
+         this.targetServer = null;
+         EventWatcherClient.LOGGER.info("Migrated legacy single-watch config to the multi-watch format.");
+      }
+   }
+
    public EventWatcherConfig copy() {
       EventWatcherConfig c = new EventWatcherConfig();
-      c.discordToken = this.discordToken;
-      c.channelId = this.channelId;
-      c.useUserToken = this.useUserToken;
-      c.keywords = new ArrayList<>(this.keywords);
+      c.watches = new ArrayList<>();
+
+      for (WatchConfig watch : this.watches) {
+         c.watches.add(watch.copy());
+      }
+
       c.autoConnect = this.autoConnect;
-      c.targetServer = this.targetServer;
       c.soundEnabled = this.soundEnabled;
       c.soundType = this.soundType;
       c.minecraftSound = this.minecraftSound;
@@ -113,6 +145,6 @@ public class EventWatcherConfig {
    }
 
    public boolean isConfigured() {
-      return this.discordToken != null && !this.discordToken.isBlank() && this.channelId != null && !this.channelId.isBlank();
+      return this.watches != null && this.watches.stream().anyMatch(WatchConfig::isConfigured);
    }
 }
