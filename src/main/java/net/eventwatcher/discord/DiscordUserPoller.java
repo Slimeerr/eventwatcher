@@ -34,6 +34,8 @@ public class DiscordUserPoller implements DiscordSource {
    });
    private volatile boolean running;
    private volatile boolean connected;
+   private volatile boolean primed;
+   private volatile long pausedUntil;
    @Nullable
    private volatile String lastMessageId;
    @Nullable
@@ -95,11 +97,17 @@ public class DiscordUserPoller implements DiscordSource {
    }
 
    private void poll() throws Exception {
-      if (this.running) {
+      if (this.running && System.currentTimeMillis() >= this.pausedUntil) {
          String channelId = this.config.channelId == null ? "" : this.config.channelId.trim();
          if (!channelId.isEmpty()) {
-            boolean firstRun = this.lastMessageId == null;
-            String query = firstRun ? "?limit=1" : "?limit=50&after=" + this.lastMessageId;
+            if (!channelId.chars().allMatch(Character::isDigit)) {
+               this.halt("Channel ID '" + channelId + "' is not a numeric Discord channel ID.");
+               return;
+            }
+
+            boolean baseline = !this.primed;
+            String anchor = this.lastMessageId;
+            String query = anchor != null ? "?limit=50&after=" + anchor : (baseline ? "?limit=1" : "?limit=50");
             HttpRequest req = HttpRequest.newBuilder()
                .uri(URI.create("https://discord.com/api/v10/channels/" + channelId + "/messages" + query))
                .timeout(Duration.ofSeconds(10L))
@@ -113,7 +121,11 @@ public class DiscordUserPoller implements DiscordSource {
             switch (sc) {
                case 200:
                   this.connected = true;
-                  this.handleMessages(resp.body(), firstRun);
+                  this.handleMessages(resp.body(), baseline);
+                  if (baseline) {
+                     this.primed = true;
+                     EventWatcherClient.LOGGER.info("Discord user poller connected; watching channel for new messages.");
+                  }
                   break;
                case 401:
                   this.halt("Discord rejected the USER token (401 Unauthorized) — wrong/expired token.");
@@ -127,7 +139,8 @@ public class DiscordUserPoller implements DiscordSource {
                case 429:
                   this.connected = true;
                   long retryMs = retryAfterMs(resp);
-                  EventWatcherClient.LOGGER.warn("Discord rate-limited the poller (429); skipping this cycle (retry-after ~{} ms).", retryMs);
+                  this.pausedUntil = System.currentTimeMillis() + retryMs;
+                  EventWatcherClient.LOGGER.warn("Discord rate-limited the poller (429); pausing polls for ~{} ms.", retryMs);
                   break;
                default:
                   EventWatcherClient.LOGGER.warn("Discord poll returned HTTP {} — will retry.", sc);
@@ -136,7 +149,7 @@ public class DiscordUserPoller implements DiscordSource {
       }
    }
 
-   private void handleMessages(String body, boolean firstRun) {
+   private void handleMessages(String body, boolean baseline) {
       JsonElement parsed = JsonParser.parseString(body);
       if (parsed.isJsonArray()) {
          JsonArray arr = parsed.getAsJsonArray();
@@ -151,7 +164,7 @@ public class DiscordUserPoller implements DiscordSource {
                      newest = id;
                   }
 
-                  if (!firstRun) {
+                  if (!baseline) {
                      this.scan(msg);
                   }
                }
@@ -159,10 +172,6 @@ public class DiscordUserPoller implements DiscordSource {
 
             if (newest != null) {
                this.lastMessageId = newest;
-            }
-
-            if (firstRun) {
-               EventWatcherClient.LOGGER.info("Discord user poller connected; watching channel for new messages.");
             }
          }
       }

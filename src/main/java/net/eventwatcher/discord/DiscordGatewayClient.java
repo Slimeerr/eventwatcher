@@ -1,5 +1,6 @@
 package net.eventwatcher.discord;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -11,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.eventwatcher.EventWatcherClient;
 import net.eventwatcher.config.EventWatcherConfig;
 import org.jetbrains.annotations.Nullable;
@@ -27,6 +29,7 @@ public class DiscordGatewayClient implements DiscordSource {
    private static final int INTENTS = 37376;
    private static final String GATEWAY_URL = "wss://gateway.discord.gg/?v=10&encoding=json";
    private static final long RECONNECT_DELAY_MS = 5000L;
+   private static final long RATE_LIMIT_RECONNECT_DELAY_MS = 15000L;
    private final String token;
    private final EventWatcherConfig config;
    private final DiscordSource.MatchListener listener;
@@ -39,6 +42,7 @@ public class DiscordGatewayClient implements DiscordSource {
    private final Object bufferLock = new Object();
    private final StringBuilder textBuffer = new StringBuilder();
    private final Object sendLock = new Object();
+   private final AtomicBoolean reconnectPending = new AtomicBoolean(false);
    private volatile WebSocket webSocket;
    private volatile boolean running;
    private volatile boolean connected;
@@ -94,9 +98,7 @@ public class DiscordGatewayClient implements DiscordSource {
 
    private void openSocket() {
       if (this.running) {
-         String url = this.shouldResume && this.resumeGatewayUrl != null
-            ? this.resumeGatewayUrl + "/?v=10&encoding=json"
-            : "wss://gateway.discord.gg/?v=10&encoding=json";
+         String url = this.shouldResume && this.resumeGatewayUrl != null ? this.resumeGatewayUrl + "/?v=10&encoding=json" : GATEWAY_URL;
          EventWatcherClient.LOGGER.info("Connecting to Discord gateway ({})...", this.shouldResume ? "resume" : "fresh");
 
          try {
@@ -118,6 +120,10 @@ public class DiscordGatewayClient implements DiscordSource {
    }
 
    private void scheduleReconnect(boolean resume) {
+      this.scheduleReconnect(resume, RECONNECT_DELAY_MS);
+   }
+
+   private void scheduleReconnect(boolean resume, long delayMs) {
       if (this.running) {
          this.cancelHeartbeat();
          this.connected = false;
@@ -127,13 +133,19 @@ public class DiscordGatewayClient implements DiscordSource {
          if (old != null) {
             try {
                old.abort();
-            } catch (Exception var5) {
+            } catch (Exception var6) {
             }
          }
 
-         try {
-            this.scheduler.schedule(this::openSocket, 5000L, TimeUnit.MILLISECONDS);
-         } catch (Exception var4) {
+         if (this.reconnectPending.compareAndSet(false, true)) {
+            try {
+               this.scheduler.schedule(() -> {
+                  this.reconnectPending.set(false);
+                  this.openSocket();
+               }, delayMs, TimeUnit.MILLISECONDS);
+            } catch (Exception var5) {
+               this.reconnectPending.set(false);
+            }
          }
       }
    }
@@ -181,7 +193,7 @@ public class DiscordGatewayClient implements DiscordSource {
       properties.addProperty("device", "eventwatcher");
       JsonObject d = new JsonObject();
       d.addProperty("token", this.token);
-      d.addProperty("intents", 37376);
+      d.addProperty("intents", INTENTS);
       d.add("properties", properties);
       JsonObject payload = new JsonObject();
       payload.addProperty("op", 2);
@@ -257,7 +269,8 @@ public class DiscordGatewayClient implements DiscordSource {
                this.scheduleReconnect(true);
                break;
             case 9:
-               boolean resumable = payload.has("d") && payload.get("d").getAsBoolean();
+               JsonElement invalidSessionData = payload.get("d");
+               boolean resumable = invalidSessionData != null && invalidSessionData.isJsonPrimitive() && invalidSessionData.getAsBoolean();
                EventWatcherClient.LOGGER.warn("Invalid session (resumable={}).", resumable);
                if (!resumable) {
                   this.sessionId = null;
@@ -330,7 +343,7 @@ public class DiscordGatewayClient implements DiscordSource {
          case 4004:
             EventWatcherClient.LOGGER
                .error("Discord rejected the token (4004 Authentication Failed). Check the BOT token in EventWatcher settings. Not retrying.");
-            this.running = false;
+            this.haltAfterFatalClose();
             break;
          case 4005:
          case 4006:
@@ -352,20 +365,27 @@ public class DiscordGatewayClient implements DiscordSource {
          case 4008:
             EventWatcherClient.LOGGER.warn("Discord rate-limited the gateway (4008). Backing off before reconnect.");
             if (this.running) {
-               this.scheduleReconnect(true);
+               this.scheduleReconnect(true, RATE_LIMIT_RECONNECT_DELAY_MS);
             }
             break;
          case 4013:
             EventWatcherClient.LOGGER.error("Discord reported invalid intents (4013). Not retrying.");
-            this.running = false;
+            this.haltAfterFatalClose();
             break;
          case 4014:
             EventWatcherClient.LOGGER
                .error(
                   "Discord reported DISALLOWED intents (4014). Enable the 'MESSAGE CONTENT INTENT' for your bot in the Developer Portal (Bot tab). Not retrying."
                );
-            this.running = false;
+            this.haltAfterFatalClose();
       }
+   }
+
+   private void haltAfterFatalClose() {
+      this.running = false;
+      this.connected = false;
+      this.cancelHeartbeat();
+      this.webSocket = null;
    }
 
    private class Listener implements WebSocket.Listener {

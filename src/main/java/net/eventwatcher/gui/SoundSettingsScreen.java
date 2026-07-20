@@ -3,6 +3,7 @@ package net.eventwatcher.gui;
 import java.util.List;
 import net.eventwatcher.config.EventWatcherConfig;
 import net.eventwatcher.sound.NotificationSound;
+import net.eventwatcher.util.GradientText;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -91,7 +92,7 @@ public class SoundSettingsScreen extends Screen {
       context.fill(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + 1, -12961222);
       context.fill(this.panelLeft, this.panelTop + this.panelHeight - 1, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, -12961222);
       super.render(context, mouseX, mouseY, delta);
-      context.drawCenteredTextWithShadow(this.textRenderer, "Sound Settings", this.width / 2, this.panelTop + 12, -1);
+      context.drawCenteredTextWithShadow(this.textRenderer, GradientText.of("Sound Settings"), this.width / 2, this.panelTop + 12, -1);
       if ("file".equals(this.working.soundType)) {
          context.drawCenteredTextWithShadow(this.textRenderer, "Absolute path to a .wav file", this.width / 2, this.panelTop + this.panelHeight - 44, -7303024);
       }

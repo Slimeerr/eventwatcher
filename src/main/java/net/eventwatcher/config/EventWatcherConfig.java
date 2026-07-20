@@ -21,7 +21,7 @@ public class EventWatcherConfig {
    public boolean useUserToken = false;
    public List<String> keywords = new ArrayList<>(DEFAULT_KEYWORDS);
    public boolean autoConnect = false;
-   public String targetServer = "unstableevents.net";
+   public String targetServer = DEFAULT_TARGET;
    public boolean soundEnabled = true;
    public String soundType = "minecraft";
    public String minecraftSound = "block.note_block.pling";
@@ -81,7 +81,7 @@ public class EventWatcherConfig {
       }
 
       if (this.targetServer == null || this.targetServer.isBlank()) {
-         this.targetServer = "unstableevents.net";
+         this.targetServer = DEFAULT_TARGET;
       }
 
       if (this.soundType == null || this.soundType.isBlank()) {

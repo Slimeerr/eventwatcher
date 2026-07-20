@@ -92,8 +92,18 @@ public final class ServerConnector {
    }
 
    public static void connectNow(String serverAddress) {
+      if (serverAddress == null || serverAddress.isBlank()) {
+         EventWatcherClient.LOGGER.warn("No target server configured — set one in EventWatcher settings.");
+         return;
+      }
+
       MinecraftClient client = MinecraftClient.getInstance();
       client.execute(() -> {
+         if (client.currentScreen instanceof ConnectScreen) {
+            EventWatcherClient.LOGGER.info("A connection attempt is already in progress — not starting another.");
+            return;
+         }
+
          EventNotifications.clear();
          if (isAlreadyConnectedTo(client, serverAddress)) {
             EventWatcherClient.LOGGER.info("Already connected to {} — not rejoining.", serverAddress);

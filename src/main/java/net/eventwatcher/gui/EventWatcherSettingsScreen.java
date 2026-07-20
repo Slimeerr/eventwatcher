@@ -3,6 +3,7 @@ package net.eventwatcher.gui;
 import net.eventwatcher.EventWatcherClient;
 import net.eventwatcher.config.EventWatcherConfig;
 import net.eventwatcher.discord.DiscordSource;
+import net.eventwatcher.util.GradientText;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -54,7 +55,7 @@ public class EventWatcherSettingsScreen extends Screen {
       this.tokenField = new TextFieldWidget(this.textRenderer, this.col1, this.contentTop + 10, colWidth, 18, Text.literal("Discord Token"));
       this.tokenField.setMaxLength(120);
       this.tokenField.setText(this.working.discordToken);
-      this.tokenField.setChangedListener(s -> this.working.discordToken = s);
+      this.tokenField.setChangedListener(s -> this.working.discordToken = s.trim());
       this.tokenField.addFormatter((displayed, offset) -> OrderedText.styledForwardsVisitedString("*".repeat(displayed.length()), Style.EMPTY));
       this.addDrawableChild(this.tokenField);
       this.channelField = new TextFieldWidget(this.textRenderer, this.col1, this.contentTop + 48, colWidth, 18, Text.literal("Channel ID"));
@@ -132,6 +133,7 @@ public class EventWatcherSettingsScreen extends Screen {
    }
 
    private void save() {
+      this.working.sanitize();
       EventWatcherClient.setConfig(this.working);
       this.working.save();
       EventWatcherClient.restartDiscord();
@@ -151,7 +153,7 @@ public class EventWatcherSettingsScreen extends Screen {
       context.fill(this.col2 - 6, sepTop, this.col2 - 5, sepBottom, 822083583);
       context.fill(this.col3 - 6, sepTop, this.col3 - 5, sepBottom, 822083583);
       super.render(context, mouseX, mouseY, delta);
-      context.drawCenteredTextWithShadow(this.textRenderer, "EventWatcher Settings", this.width / 2, this.panelTop + 12, -1);
+      context.drawCenteredTextWithShadow(this.textRenderer, GradientText.of("EventWatcher Settings"), this.width / 2, this.panelTop + 12, -1);
       int labelColor = -5197648;
       context.drawTextWithShadow(this.textRenderer, "Discord Token", this.col1, this.contentTop, labelColor);
       context.drawTextWithShadow(this.textRenderer, "Channel ID", this.col1, this.contentTop + 38, labelColor);
