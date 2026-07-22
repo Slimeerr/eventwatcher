@@ -6,6 +6,7 @@ import net.eventwatcher.config.EventWatcherConfig.ServerEntry;
 import net.eventwatcher.discord.DiscordSource;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.text.OrderedText;
@@ -73,10 +74,16 @@ public class EventWatcherSettingsScreen extends Screen {
       this.statusY = this.contentTop + 108;
       int btnY = this.panelTop + this.panelHeight - 26;
       this.addDrawableChild(
-         ButtonWidget.builder(Text.literal("Save"), b -> this.save()).dimensions(this.width / 2 - 104, btnY, 100, 20).build()
+         ButtonWidget.builder(Text.literal("Save"), b -> this.save())
+            .dimensions(this.width / 2 - 104, btnY, 100, 20)
+            .tooltip(Tooltip.of(Text.literal("Save and close. Closing with Esc also auto-saves.")))
+            .build()
       );
       this.addDrawableChild(
-         ButtonWidget.builder(Text.literal("Cancel"), b -> this.backToParent()).dimensions(this.width / 2 + 4, btnY, 100, 20).build()
+         ButtonWidget.builder(Text.literal("Discard"), b -> this.backToParent())
+            .dimensions(this.width / 2 + 4, btnY, 100, 20)
+            .tooltip(Tooltip.of(Text.literal("Throw away changes made since you opened this screen.")))
+            .build()
       );
    }
 
@@ -93,11 +100,16 @@ public class EventWatcherSettingsScreen extends Screen {
       }
    }
 
-   private void save() {
+   private void persist() {
       this.working.servers.removeIf(ServerEntry::isBlank);
       EventWatcherClient.setConfig(this.working);
       this.working.save();
       EventWatcherClient.restartDiscord();
+   }
+
+   /** Save button: persist and leave. */
+   private void save() {
+      this.persist();
       this.backToParent();
    }
 
@@ -131,7 +143,13 @@ public class EventWatcherSettingsScreen extends Screen {
       context.drawTextWithShadow(this.textRenderer, "Events caught: " + caught, this.col2, this.statusY + 14, -7303024);
    }
 
+   /** Escape / clicking away autosaves, so forgetting the Save button never loses your setup. */
    public void close() {
+      this.working.servers.removeIf(ServerEntry::isBlank);
+      if (!this.working.contentEquals(EventWatcherClient.getConfig())) {
+         this.persist();
+      }
+
       this.backToParent();
    }
 }

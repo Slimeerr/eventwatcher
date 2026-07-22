@@ -254,6 +254,11 @@ public class EventWatcherConfig {
       return this.discordToken != null && !this.discordToken.isBlank() && !this.watchedChannels().isEmpty();
    }
 
+   /** True if this config has the same content as another (used to skip needless autosaves). */
+   public boolean contentEquals(EventWatcherConfig other) {
+      return other != null && GSON.toJson(this).equals(GSON.toJson(other));
+   }
+
    /** Union of every server's channels — the full set of channels to watch. */
    public List<String> watchedChannels() {
       List<String> out = new ArrayList<>();
