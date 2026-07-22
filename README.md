@@ -1,172 +1,351 @@
-
-# EventWatcher
-
-  <img width="360" height="360" alt="image" src="https://github.com/user-attachments/assets/bc3d3eb4-2067-4ece-8d9f-cc722c089109" />
-
+````md
+<h1 align="center">EventWatcher</h1>
 
 <p align="center">
-  <h3 align="center">Watch Discord. Join faster.</h3>
-  <p align="center">
-    A client-side Fabric mod for <b>Minecraft 1.21.11</b> that monitors a Discord channel for keywords and notifies you or automatically joins your target server when a match is found.
-  </p>
+  <img src="https://github.com/user-attachments/assets/bc3d3eb4-2067-4ece-8d9f-cc722c089109" width="300" alt="EventWatcher Logo">
 </p>
-
 
 <p align="center">
-
-![Minecraft](https://img.shields.io/badge/Minecraft-1.21.11-5E9C36)
-![Loader](https://img.shields.io/badge/Loader-Fabric-orange)
-![Java](https://img.shields.io/badge/Java-21-blue)
-![License](https://img.shields.io/github/license/Slimeerr/eventwatcher)
-
+  <strong>Watch Discord. Join faster.</strong>
 </p>
+
+<p align="center">
+  A client-side Fabric mod for <strong>Minecraft 1.21.11</strong> that watches Discord channels for event drops and either notifies you or automatically connects you to your target server the instant a matching message appears.
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Minecraft-1.21.11-5E9C36" alt="Minecraft">
+  <img src="https://img.shields.io/badge/Loader-Fabric-orange" alt="Fabric">
+  <img src="https://img.shields.io/badge/Java-21-blue" alt="Java">
+  <img src="https://img.shields.io/github/license/Slimeerr/eventwatcher" alt="License">
+</p>
+
+---
+
+Ever missed an event because someone posted it in Discord before you saw it?
+
+**EventWatcher** watches the channel for you and reacts instantly. Whether you just want a notification or want Minecraft to automatically connect to your target server, EventWatcher is designed to get you there as fast as possible.
+
+It works both from the **Minecraft Title Screen** and **while you're already in-game**, so you never have to sit refreshing Discord again.
 
 > [!NOTE]
-> EventWatcher works from both the Minecraft title screen and in-game.
+> EventWatcher works both from the Minecraft title screen and while connected to another server.
 
 > [!WARNING]
-> AI code and vibecoding were used in this project.
+> This project was built with AI assistance ("vibecoding"). If that isn't your thing, this project probably isn't for you.
 
 > [!CAUTION]
-> User tokens (selfbots) violate Discord's Terms of Service. If you choose to use one, use an alternate account and understand the risks.
+> Using a **User Token (selfbot)** violates Discord's Terms of Service. If you choose to use one, use an alternate account—not your primary account.
 
+> [!CAUTION]
+> Use this mod at your own risk. Any bans, restrictions, or other actions taken by Discord, Minecraft servers, or third parties are your responsibility.
 
-## Features
+---
 
-- Monitor a Discord channel for keywords
-- Works on the title screen and in-game
-- Supports Bot and User tokens
-- Notify or Auto-Connect modes
-- Custom notification sounds
-- Simple configuration screen
-- ModMenu integration
+# ✨ Features
 
-## Installation
+## 🚀 Multiple Server Profiles
 
-1. Install Fabric Loader for **1.21.11**
-2. Install Fabric API.
-3. (Optional) Install ModMenu.
-4. Download the latest EventWatcher release.
-5. Place the JAR in your `mods` folder.
-6. Launch Minecraft.
+Configure as many servers as you want.
 
-## Quick Start
+Each profile has its own:
 
-1. Open **EventWatcher** from the title screen or ModMenu.
-2. Choose a token type.
-3. Enter your Discord token.
-4. Enter the Channel ID.
-5. Add one or more keywords.
-6. Enter your target server.
-7. Choose **Notify Me** or **Auto-Connect**.
-8. Save your settings.
+- Discord channel(s)
+- Keywords
+- Target Minecraft server
+- Notify Me / Auto-Connect mode
+- Cooldown timer
 
-## Configuration
+---
 
-| Setting | Description |
-| --- | --- |
-| Discord Token | Token used to access Discord. |
-| Channel ID | Channel to monitor. |
-| Keywords | Words or phrases that trigger EventWatcher. |
-| Mode | Notify Me or Auto-Connect. |
-| Target Server | Server to join when triggered. |
-| Sound | Configure notification sounds. |
+## ⚡ Fast Discord Detection
 
-## Token Types
+Choose whichever authentication method fits your situation.
 
-### Bot Token
+### Bot Token (Recommended)
 
-Recommended whenever possible.
+- Uses Discord's Gateway API
+- Receives messages instantly
+- Fastest possible detection
+- Fully supported by Discord
 
-- Real-time Discord events
-- Official Discord bot support
-- Fastest option
+Perfect if you own the Discord server or can invite a bot.
 
-Use this if you own the server or can invite bots.
+### User Token (Selfbot)
 
-### User Token
-
-Use this only if you cannot add a bot.
-
-- Polls the channel periodically
-- Slightly slower than a bot token
+- Uses Discord's REST API
+- Polls Discord periodically
+- Useful when bots cannot be added
 - Violates Discord's Terms of Service
 
-## Modes
+---
 
-### Notify Me
+## 🎯 Smart Keyword Matching
 
-Displays a notification, plays your selected sound, and lets you join manually.
+Designed to avoid false positives.
 
-### Auto-Connect
+Supports:
 
-Automatically connects you to your configured server when a keyword matches.
+- Whole-word matching
+- Negative keywords using `!`
+- Per-server cooldowns
 
-## Sounds
+Examples:
 
-Choose from several built-in Minecraft sounds or provide your own `.wav` file.
-
-Supported custom format:
-
-- `.wav`
-
-## Command
-
-```text
-/ewjoin
+```
+event
+!ended
 ```
 
-Immediately connects to your configured target server.
+The keyword `event` won't trigger on words like `prevent`.
 
-## Configuration File
+---
+
+## 🔄 Retry Until Joined
+
+If your event server is:
+
+- Full
+- Queueing
+- Temporarily unavailable
+
+EventWatcher will continue trying until Minecraft successfully joins.
+
+---
+
+## 🔔 Notification Queue
+
+Missed notifications are a thing of the past.
+
+Every detected event gets its own notification containing:
+
+- Join button
+- Discord username
+- Discord avatar
+
+Multiple events can stay queued at once.
+
+---
+
+## 🎵 Custom Sounds
+
+Choose from:
+
+- Built-in Minecraft sounds
+- Your own custom `.wav` files
+
+---
+
+## 🌌 Galaxy Interface
+
+A custom UI with:
+
+- Animated starfield
+- Galaxy gradient theme
+- Modern interface
+- Smooth animations
+
+---
+
+## 🛠 Quality of Life
+
+- Test Alert button
+- Persistent Events Caught counter
+- Keyword collision warnings
+- Helpful hover tooltips
+- `/ewjoin` command
+- ModMenu integration
+- Works on the Title Screen
+- Works while connected to servers
+
+---
+
+# 📸 Screenshots
+
+*Coming soon.*
+
+---
+
+# 🚀 Installation
+
+1. Install **Fabric Loader** for **Minecraft 1.21.11**
+2. Install **Fabric API**
+3. *(Optional)* Install **ModMenu**
+4. Download the latest EventWatcher release
+5. Place the JAR inside your `mods` folder
+6. Launch Minecraft
+
+---
+
+# ⚙️ Quick Start
+
+1. Open EventWatcher.
+2. Choose your token type.
+3. Enter your Discord token.
+4. Add one or more Discord channels.
+5. Configure your keywords.
+6. Enter your target server.
+7. Choose **Notify Me** or **Auto-Connect**.
+8. Save.
+
+You're done.
+
+---
+
+# ⚙️ Configuration
+
+Configuration is stored in:
 
 ```text
 .minecraft/config/eventwatcher.json
 ```
 
-Your token is stored in plain text. Keep the file private.
+> [!NOTE]
+> Your Discord token is stored in plain text inside the configuration file. Keep it private and never share it.
 
-## Troubleshooting
+---
 
-**Nothing happens when a keyword is posted**
+# 🖥 Command
 
-- Verify the Channel ID.
+```text
+/ewjoin
+```
+
+Immediately connects you to the configured target server.
+
+---
+
+# ❓ FAQ
+
+### Is EventWatcher client-side?
+
+Yes.
+
+Everything runs on your Minecraft client.
+
+---
+
+### Does it work while I'm already playing?
+
+Yes.
+
+EventWatcher works both on the Title Screen and while connected to another server.
+
+---
+
+### Can I monitor multiple servers?
+
+Yes.
+
+Each server can have its own:
+
+- Discord channels
+- Keywords
+- Mode
+- Cooldown
+- Target server
+
+---
+
+### Which token type should I use?
+
+Whenever possible, use a **Bot Token**.
+
+Only use a **User Token** if you cannot add a bot to the Discord server.
+
+---
+
+# 🔧 Troubleshooting
+
+### Nothing happens
+
+- Verify your Discord Channel IDs.
 - Verify your keywords.
-- Check the bot has access to the channel.
-- Make sure Message Content Intent is enabled for bot tokens.
+- Make sure your bot has permission to read the channel.
+- For bot tokens, ensure **Message Content Intent** is enabled.
 
-**Wrong server**
+---
+
+### It joins the wrong server
 
 Check your configured target server address.
 
-## Building
+---
 
-Requirements:
+### My custom sound doesn't play
 
-- Java 21
+Ensure the file is a valid `.wav`.
+
+---
+
+# 🏗 Building
+
+Requires:
+
 - JDK 21
+- Java 21
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/Slimeerr/eventwatcher.git
 cd eventwatcher
+```
+
+Build:
+
+Linux/macOS
+
+```bash
 ./gradlew build
 ```
 
-Windows:
+Windows
 
-```bash
+```bat
 gradlew.bat build
 ```
 
-The compiled JAR will be available in `build/libs/`.
+The compiled JAR will be located inside:
 
-## Requirements
+```text
+build/libs/
+```
+
+---
+
+# 📋 Requirements
 
 - Minecraft 1.21.11
-- Fabric Loader 0.19.0+
+- Fabric Loader
 - Fabric API
 - Java 21
 
-## License
+---
 
-Released under the MIT License. See [LICENSE](LICENSE) for details.
+# 🗺 Roadmap
+
+- [x] Multi-server support
+- [x] Notification queue
+- [x] Retry Until Joined
+- [x] Whole-word keyword matching
+- [x] Negative keywords
+- [x] Custom sounds
+- [x] Galaxy UI
+- [ ] More notification customization
+- [ ] Additional quality-of-life improvements
+
+---
+
+# 📄 License
+
+Released under the **MIT License**.
+
+See the [LICENSE](LICENSE) file for more information.
+
+---
+
+<p align="center">
+Made for people who'd rather be playing Minecraft than refreshing Discord.
+</p>
+````
