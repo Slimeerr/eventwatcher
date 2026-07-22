@@ -11,6 +11,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import net.eventwatcher.EventWatcherClient;
 import net.eventwatcher.config.EventWatcherConfig;
 import org.jetbrains.annotations.Nullable;
@@ -36,6 +37,7 @@ public class DiscordGatewayClient implements DiscordSource {
       t.setDaemon(true);
       return t;
    });
+   private final AtomicBoolean reconnectPending = new AtomicBoolean(false);
    private final Object bufferLock = new Object();
    private final StringBuilder textBuffer = new StringBuilder();
    private final Object sendLock = new Object();
@@ -131,9 +133,17 @@ public class DiscordGatewayClient implements DiscordSource {
             }
          }
 
-         try {
-            this.scheduler.schedule(this::openSocket, 5000L, TimeUnit.MILLISECONDS);
-         } catch (Exception var4) {
+         // Guard against stacking reconnects (heartbeat timeout + close can both fire) —
+         // a reconnect storm gets us rate-limited and misses events.
+         if (this.reconnectPending.compareAndSet(false, true)) {
+            try {
+               this.scheduler.schedule(() -> {
+                  this.reconnectPending.set(false);
+                  this.openSocket();
+               }, RECONNECT_DELAY_MS, TimeUnit.MILLISECONDS);
+            } catch (Exception var4) {
+               this.reconnectPending.set(false);
+            }
          }
       }
    }
@@ -309,17 +319,20 @@ public class DiscordGatewayClient implements DiscordSource {
 
    private void handleMessage(JsonObject d) {
       String channelId = d.has("channel_id") ? d.get("channel_id").getAsString() : "";
-      String target = this.config.channelId == null ? "" : this.config.channelId.trim();
-      if (!target.isEmpty() && target.equals(channelId)) {
+      if (!channelId.isEmpty() && this.config.watchedChannels().contains(channelId)) {
          String text = MessageScanner.extractText(d);
-         String matched = MessageScanner.matchKeyword(text, this.config.keywords);
+         MessageScanner.ServerMatch matched = MessageScanner.matchServer(text, channelId, this.config.servers);
          if (matched != null) {
-            EventWatcherClient.LOGGER.info("Keyword '{}' detected in monitored channel.", matched);
+            EventWatcherClient.LOGGER.info("Keyword '{}' detected — target {}.", matched.keyword(), matched.server().displayName());
+            MessageScanner.Author author = MessageScanner.extractAuthor(d);
+            DiscordSource.DetectedMessage dm = new DiscordSource.DetectedMessage(
+               text, matched.keyword(), author.name(), author.id(), author.avatarHash()
+            );
 
             try {
-               this.listener.onMatch(text, matched);
-            } catch (Exception var7) {
-               EventWatcherClient.LOGGER.error("Keyword listener threw", var7);
+               this.listener.onMatch(dm, matched.server());
+            } catch (Exception var8) {
+               EventWatcherClient.LOGGER.error("Keyword listener threw", var8);
             }
          }
       }

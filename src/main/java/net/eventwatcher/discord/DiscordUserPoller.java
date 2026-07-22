@@ -22,6 +22,7 @@ import org.jetbrains.annotations.Nullable;
 public class DiscordUserPoller implements DiscordSource {
    private static final String API = "https://discord.com/api/v10";
    private static final long POLL_INTERVAL_MS = 3000L;
+   private static final long STAGGER_MS = 350L;
    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
    private final String token;
    private final EventWatcherConfig config;
@@ -34,8 +35,8 @@ public class DiscordUserPoller implements DiscordSource {
    });
    private volatile boolean running;
    private volatile boolean connected;
-   @Nullable
-   private volatile String lastMessageId;
+   private final java.util.Map<String, String> lastByChannel = new java.util.concurrent.ConcurrentHashMap<>();
+   private final java.util.Map<String, Long> retryAtByChannel = new java.util.concurrent.ConcurrentHashMap<>();
    @Nullable
    private volatile ScheduledFuture<?> task;
 
@@ -94,54 +95,91 @@ public class DiscordUserPoller implements DiscordSource {
       }
    }
 
-   private void poll() throws Exception {
+   private void poll() {
       if (this.running) {
-         String channelId = this.config.channelId == null ? "" : this.config.channelId.trim();
-         if (!channelId.isEmpty()) {
-            boolean firstRun = this.lastMessageId == null;
-            String query = firstRun ? "?limit=1" : "?limit=50&after=" + this.lastMessageId;
-            HttpRequest req = HttpRequest.newBuilder()
-               .uri(URI.create("https://discord.com/api/v10/channels/" + channelId + "/messages" + query))
-               .timeout(Duration.ofSeconds(10L))
-               .header("Authorization", this.token)
-               .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-               .header("Accept", "application/json")
-               .GET()
-               .build();
-            HttpResponse<String> resp = this.http.send(req, BodyHandlers.ofString());
-            int sc = resp.statusCode();
-            switch (sc) {
-               case 200:
-                  this.connected = true;
-                  this.handleMessages(resp.body(), firstRun);
-                  break;
-               case 401:
-                  this.halt("Discord rejected the USER token (401 Unauthorized) — wrong/expired token.");
-                  break;
-               case 403:
-                  this.halt("No access to channel " + channelId + " (403 Forbidden) — is the alt account in that server and able to see the channel?");
-                  break;
-               case 404:
-                  this.halt("Channel " + channelId + " not found (404) — check the Channel ID.");
-                  break;
-               case 429:
-                  this.connected = true;
-                  long retryMs = retryAfterMs(resp);
-                  EventWatcherClient.LOGGER.warn("Discord rate-limited the poller (429); skipping this cycle (retry-after ~{} ms).", retryMs);
-                  break;
-               default:
-                  EventWatcherClient.LOGGER.warn("Discord poll returned HTTP {} — will retry.", sc);
+         java.util.List<String> channels = this.config.watchedChannels();
+
+         for (int i = 0; i < channels.size(); i++) {
+            if (!this.running) {
+               return;
+            }
+
+            String channelId = channels.get(i);
+
+            try {
+               this.pollChannel(channelId);
+            } catch (Exception var5) {
+               this.connected = false;
+               EventWatcherClient.LOGGER.warn("Poll of channel {} failed (will retry): {}", channelId, var5.toString());
+            }
+
+            // Spread requests out so many channels don't burst the rate limit at once.
+            if (i < channels.size() - 1 && channels.size() > 1) {
+               try {
+                  Thread.sleep(STAGGER_MS);
+               } catch (InterruptedException var4) {
+                  Thread.currentThread().interrupt();
+                  return;
+               }
             }
          }
       }
    }
 
-   private void handleMessages(String body, boolean firstRun) {
+   private void pollChannel(String channelId) throws Exception {
+      Long retryAt = this.retryAtByChannel.get(channelId);
+      if (retryAt != null) {
+         if (System.currentTimeMillis() < retryAt) {
+            return;
+         }
+
+         this.retryAtByChannel.remove(channelId);
+      }
+
+      String last = this.lastByChannel.get(channelId);
+      boolean firstRun = last == null;
+      String query = firstRun ? "?limit=1" : "?limit=50&after=" + last;
+      HttpRequest req = HttpRequest.newBuilder()
+         .uri(URI.create("https://discord.com/api/v10/channels/" + channelId + "/messages" + query))
+         .timeout(Duration.ofSeconds(10L))
+         .header("Authorization", this.token)
+         .header("User-Agent", USER_AGENT)
+         .header("Accept", "application/json")
+         .GET()
+         .build();
+      HttpResponse<String> resp = this.http.send(req, BodyHandlers.ofString());
+      int sc = resp.statusCode();
+      switch (sc) {
+         case 200:
+            this.connected = true;
+            this.handleMessages(channelId, resp.body(), firstRun);
+            break;
+         case 401:
+            this.halt("Discord rejected the USER token (401 Unauthorized) — wrong/expired token.");
+            break;
+         case 403:
+            EventWatcherClient.LOGGER.warn("No access to channel {} (403) — skipping it. Is the alt in that server and able to see the channel?", channelId);
+            break;
+         case 404:
+            EventWatcherClient.LOGGER.warn("Channel {} not found (404) — skipping it. Check the Channel ID.", channelId);
+            break;
+         case 429:
+            this.connected = true;
+            long retryMs = retryAfterMs(resp);
+            this.retryAtByChannel.put(channelId, System.currentTimeMillis() + retryMs);
+            EventWatcherClient.LOGGER.warn("Discord rate-limited the poller (429) on channel {}; backing off ~{} ms.", channelId, retryMs);
+            break;
+         default:
+            EventWatcherClient.LOGGER.warn("Discord poll of channel {} returned HTTP {} — will retry.", channelId, sc);
+      }
+   }
+
+   private void handleMessages(String channelId, String body, boolean firstRun) {
       JsonElement parsed = JsonParser.parseString(body);
       if (parsed.isJsonArray()) {
          JsonArray arr = parsed.getAsJsonArray();
          if (!arr.isEmpty()) {
-            String newest = this.lastMessageId;
+            String newest = this.lastByChannel.get(channelId);
 
             for (JsonElement el : arr) {
                if (el.isJsonObject()) {
@@ -152,32 +190,36 @@ public class DiscordUserPoller implements DiscordSource {
                   }
 
                   if (!firstRun) {
-                     this.scan(msg);
+                     this.scan(channelId, msg);
                   }
                }
             }
 
             if (newest != null) {
-               this.lastMessageId = newest;
+               this.lastByChannel.put(channelId, newest);
             }
 
             if (firstRun) {
-               EventWatcherClient.LOGGER.info("Discord user poller connected; watching channel for new messages.");
+               EventWatcherClient.LOGGER.info("Discord user poller now watching channel {}.", channelId);
             }
          }
       }
    }
 
-   private void scan(JsonObject msg) {
+   private void scan(String channelId, JsonObject msg) {
       String text = MessageScanner.extractText(msg);
-      String matched = MessageScanner.matchKeyword(text, this.config.keywords);
+      MessageScanner.ServerMatch matched = MessageScanner.matchServer(text, channelId, this.config.servers);
       if (matched != null) {
-         EventWatcherClient.LOGGER.info("Keyword '{}' detected in monitored channel.", matched);
+         EventWatcherClient.LOGGER.info("Keyword '{}' detected — target {}.", matched.keyword(), matched.server().displayName());
+         MessageScanner.Author author = MessageScanner.extractAuthor(msg);
+         DiscordSource.DetectedMessage dm = new DiscordSource.DetectedMessage(
+            text, matched.keyword(), author.name(), author.id(), author.avatarHash()
+         );
 
          try {
-            this.listener.onMatch(text, matched);
-         } catch (Exception var5) {
-            EventWatcherClient.LOGGER.error("Keyword listener threw", var5);
+            this.listener.onMatch(dm, matched.server());
+         } catch (Exception var6) {
+            EventWatcherClient.LOGGER.error("Keyword listener threw", var6);
          }
       }
    }

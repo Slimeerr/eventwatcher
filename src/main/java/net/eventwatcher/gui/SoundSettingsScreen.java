@@ -87,11 +87,9 @@ public class SoundSettingsScreen extends Screen {
    }
 
    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-      context.fill(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, -1072689136);
-      context.fill(this.panelLeft, this.panelTop, this.panelLeft + this.panelWidth, this.panelTop + 1, -12961222);
-      context.fill(this.panelLeft, this.panelTop + this.panelHeight - 1, this.panelLeft + this.panelWidth, this.panelTop + this.panelHeight, -12961222);
+      GalaxyTheme.panel(context, this.panelLeft, this.panelTop, this.panelWidth, this.panelHeight);
       super.render(context, mouseX, mouseY, delta);
-      context.drawCenteredTextWithShadow(this.textRenderer, "Sound Settings", this.width / 2, this.panelTop + 12, -1);
+      GalaxyTheme.title(context, this.textRenderer, "Sound Settings", this.width / 2, this.panelTop + 12);
       if ("file".equals(this.working.soundType)) {
          context.drawCenteredTextWithShadow(this.textRenderer, "Absolute path to a .wav file", this.width / 2, this.panelTop + this.panelHeight - 44, -7303024);
       }

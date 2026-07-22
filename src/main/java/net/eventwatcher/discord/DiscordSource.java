@@ -1,5 +1,7 @@
 package net.eventwatcher.discord;
 
+import net.eventwatcher.config.EventWatcherConfig.ServerEntry;
+
 public interface DiscordSource {
    void start();
 
@@ -9,6 +11,10 @@ public interface DiscordSource {
 
    @FunctionalInterface
    public interface MatchListener {
-      void onMatch(String var1, String var2);
+      void onMatch(DetectedMessage message, ServerEntry server);
+   }
+
+   /** A matched message plus who posted it, passed to the match listener. */
+   public record DetectedMessage(String content, String keyword, String authorName, String authorId, String avatarHash) {
    }
 }

@@ -7,6 +7,7 @@ import net.eventwatcher.discord.DiscordGatewayClient;
 import net.eventwatcher.discord.DiscordSource;
 import net.eventwatcher.discord.DiscordUserPoller;
 import net.eventwatcher.gui.EventWatcherSettingsScreen;
+import net.eventwatcher.notify.EventNotifications;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -26,9 +27,9 @@ import org.slf4j.LoggerFactory;
 public class EventWatcherClient implements ClientModInitializer {
    public static final String MODID = "eventwatcher";
    public static final Logger LOGGER = LoggerFactory.getLogger("eventwatcher");
-   private static EventWatcherConfig config;
+   private static volatile EventWatcherConfig config;
    @Nullable
-   private static DiscordSource discord;
+   private static volatile DiscordSource discord;
    private static KeyBinding openSettingsKey;
 
    public void onInitializeClient() {
@@ -44,7 +45,12 @@ public class EventWatcherClient implements ClientModInitializer {
          .register(
             (ClientCommandRegistrationCallback)(dispatcher, registryAccess) -> dispatcher.register(
                (LiteralArgumentBuilder)ClientCommandManager.literal("ewjoin").executes(ctx -> {
-                  ServerConnector.connectNow(getConfig().targetServer);
+                  EventNotifications.PendingEvent pending = EventNotifications.latest();
+                  String server = pending != null ? pending.server() : getConfig().firstServerAddress();
+                  if (server != null && !server.isBlank()) {
+                     ServerConnector.connectNow(server);
+                  }
+
                   return 1;
                })
             )
