@@ -41,6 +41,14 @@ It works both from the **Minecraft Title Screen** and **while you're already in-
 
 ---
 
+## 📺 Video Tutorial
+
+New to EventWatcher? Here's a quick setup walkthrough (click to play):
+
+[▶ Watch the tutorial](media/tutorial.mp4)
+
+---
+
 # ✨ Features
 
 ## 🚀 Multiple Server Profiles
