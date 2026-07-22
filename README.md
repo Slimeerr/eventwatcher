@@ -43,11 +43,9 @@ It works both from the **Minecraft Title Screen** and **while you're already in-
 
 ## 📺 Video Tutorial
 
-New to EventWatcher? Here's a quick setup walkthrough:
+New to EventWatcher? Watch the quick setup walkthrough:
 
-<video src="https://raw.githubusercontent.com/Slimeerr/eventwatcher/main/media/tutorial.mp4" controls width="100%"></video>
-
-[▶ Or watch it here](media/tutorial.mp4) if the player above doesn't load.
+[![Watch the EventWatcher tutorial](media/tutorial-thumb.jpg)](media/tutorial.mp4)
 
 ---
 
