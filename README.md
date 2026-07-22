@@ -1,4 +1,3 @@
-````md
 <h1 align="center">EventWatcher</h1>
 
 <p align="center">
@@ -348,4 +347,4 @@ See the [LICENSE](LICENSE) file for more information.
 <p align="center">
 Made for people who'd rather be playing Minecraft than refreshing Discord.
 </p>
-````
+
