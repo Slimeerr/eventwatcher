@@ -52,23 +52,30 @@ jobs:
       - name: Write release notes
         run: |
           cat > release-notes.md <<'EOF'
-          Multi-watch update + bug-fix pass.
+          v1.5 — the big one. Built to catch events faster and never miss one.
 
-          ### Multiple Discords & multiple servers
-          - Add any number of watches — each with its own name, Discord token (bot or user), channel, keywords, and target server
-          - Notifications always name the server (and watch) they came from, so two watches can't send you rushing to the wrong server
-          - Chat join links carry their event's server; `/ewjoin` joins the latest event, `/ewjoin <address>` joins a specific one
-          - Watch switcher in settings (`<` `1/2` `>` plus `+`/`-`) and aggregate status (e.g. `2/2 connected`)
+          ### Multiple servers, each its own watch
+          - Add any number of target servers, each with its own Discord channel(s), keywords, and Notify/Auto-Connect mode
+          - A message routes to the server whose channel + keywords it matches; notifications name the server it came from
           - Old configs migrate automatically
 
+          ### Sharper matching
+          - Whole-word matching so `event` won't fire on "prevent"
+          - Negative keywords: prefix with `!` to ignore (e.g. `!ended`)
+          - Per-server cooldown so a chatty channel can't spam-join you
+
+          ### Faster, more reliable joins
+          - Retry-until-joined: keep hammering a full/queued event server until you get in
+          - Notification queue: multiple events can be pending at once, each its own join button
+          - Reconnect-storm guard + rate-limit backoff so you stay connected and don't get throttled
+
+          ### Nice touches
+          - The join button shows who posted, with their Discord avatar
+          - Test Alert button, persistent "events caught" counter, keyword-collision warning, hover tooltips
+          - A galaxy gradient theme with an animated starfield across every screen
+
           ### Fixes
-          - First message posted in an empty channel was never scanned (user-token mode)
-          - Embed fields/author/footer are now scanned, so event-bot embeds match reliably
-          - Gateway: no endless heartbeat warnings after fatal closes, no duplicate-reconnect socket races, real backoff on rate limits
-          - Poller honors Discord's Retry-After and reports non-numeric channel IDs clearly
-          - Overlapping auto-connect attempts no longer cancel each other
-          - Pasted tokens are trimmed; a blank target server can't be saved
-          - Fixed a resource leak in custom .wav playback
+          - Resource leak in custom .wav playback
 
           Requires Minecraft 1.21.11, Fabric Loader 0.19+, Fabric API, Java 21.
           EOF
